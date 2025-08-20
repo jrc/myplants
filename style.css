@@ -1,9 +1,9 @@
 :root {
     --brand-background: #f0f4f0;
     /* Subtle Green */
-    --brand-primary: #6f4e37;
-    /* Coffee Brown */
-    --brand-primary-dark: #5a3c2b;
+    --brand-primary: #A0522D;
+    /* Sienna Brown */
+    --brand-primary-dark: #80421D;
 }
 
 body {
@@ -29,10 +29,23 @@ body {
     border-color: var(--brand-primary-dark) !important;
 }
 
+.btn-outline-primary {
+    color: var(--brand-primary);
+    border-color: var(--brand-primary);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    color: var(--brand-primary-dark) !important;
+    border-color: var(--brand-primary-dark) !important;
+    background-color: transparent !important;
+}
+
 .feedback-btn.ok-btn {
-    padding-left: 0.8rem;
     /* Make the button wider */
-    padding-right: 0.8rem;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
 }
 
 .plant-name-wrapper {

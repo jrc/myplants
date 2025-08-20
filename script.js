@@ -85,11 +85,12 @@ function renderPlantList() {
 
     const sortedPlants = [...appState.items].sort((a, b) => new Date(a.nextDue) - new Date(b.nextDue));
 
-    const groups = { today: [], tomorrow: [], next7Days: [], future: [] };
+
+    const groups = { today: [], tomorrow: [], next3Days: [], future: [] };
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000);
-    const nextWeek = new Date(today.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const next3Days = new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000);
 
     sortedPlants.forEach(plant => {
         const dueDate = new Date(plant.nextDue);
@@ -97,22 +98,46 @@ function renderPlantList() {
 
         if (dueDateNoTime <= today) groups.today.push(plant);
         else if (isSameDay(dueDate, tomorrow)) groups.tomorrow.push(plant);
-        else if (dueDate < nextWeek) groups.next7Days.push(plant);
+        else if (dueDate < next3Days) groups.next3Days.push(plant);
         else groups.future.push(plant);
     });
 
     const renderGroup = (title, plants) => {
-        // Don't render a header if the group is empty, unless it's the "Today" group
         if (plants.length === 0 && title !== 'Today') {
             return;
         }
+        
+        // Add a header for the group
+        const header = `<p class="text-muted small mt-4 mb-2">${title.toUpperCase()}</p>`;
+        plantListEl.insertAdjacentHTML('beforeend', header);
 
-        plantListEl.insertAdjacentHTML('beforeend', `<li class="list-group-item list-group-item-light text-center group-header">${title}</li>`);
+        const listContainer = document.createElement('ul');
+        listContainer.className = 'list-group';
+
 
         if (plants.length === 0 && title === 'Today') {
-            plantListEl.insertAdjacentHTML('beforeend', `<li class="list-group-item text-center">All done for today!</li>`);
+            listContainer.innerHTML = `<li class="list-group-item text-center text-muted">All done for today!</li>`;
+            plantListEl.appendChild(listContainer);
             return;
         }
+
+        // Sort plants by date, then room name, then plant name
+        plants.sort((a, b) => {
+            const dayA = new Date(a.nextDue).setHours(0, 0, 0, 0);
+            const dayB = new Date(b.nextDue).setHours(0, 0, 0, 0);
+            if (dayA !== dayB) {
+                return dayA - dayB;
+            }
+
+            const roomA = a.roomName || '';
+            const roomB = b.roomName || '';
+            if (roomA.localeCompare(roomB) !== 0) {
+                return roomA.localeCompare(roomB);
+            }
+            
+            return a.name.localeCompare(b.name);
+        });
+
 
         plants.forEach(plant => {
             const dueDate = new Date(plant.nextDue);
@@ -122,16 +147,32 @@ function renderPlantList() {
             if (title !== 'Today' || isOverdue) {
                 const dateClass = isOverdue ? 'text-danger' : 'text-body-secondary';
                 dueDateHtml = `<div class="due-date-text ${dateClass}">
-                                  due ${dueDate.toLocaleDateString()}
+                                  Due ${dueDate.toLocaleDateString()}
                                </div>`;
             }
+            
+            let roomHtml = '';
+            if (plant.roomName) {
+                 roomHtml = `<div class="due-date-text text-body-secondary">${plant.roomName}</div>`;
+            }
 
-            const feedbackButtons = `
-                <div class="btn-group" role="group">
-                    <button class="feedback-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" data-feedback="dry" title="Soil was dry">🌵</button>
-                    <button class="feedback-btn btn btn-sm btn-outline-dark ok-btn" data-id="${plant.id}" data-feedback="ok" title="Soil was just right">👌</button>
-                    <button class="feedback-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" data-feedback="soggy" title="Soil was soggy">💧</button>
-                </div>`;
+            let actionButtonsHtml = '';
+            if (title === 'Today') {
+                actionButtonsHtml = `
+                    <div class="btn-group" role="group">
+                        <button class="feedback-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" data-feedback="dry" title="Soil was too dry">🌵</button>
+                        <button class="feedback-btn btn btn-sm btn-outline-dark ok-btn" data-id="${plant.id}" data-feedback="ok" title="Soil was just right">👌</button>
+                        <button class="feedback-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" data-feedback="soggy" title="Soil was too soggy">💦</button>
+                    </div>
+                `;
+                    // <div class="btn-group ms-1" role="group">
+                    //     <button class="snooze-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" title="Snooze by 1 day">💤</button>
+                    // </div>
+            } else if (plant.wateringHistory && plant.wateringHistory.length > 0) {
+                actionButtonsHtml = `
+                    <button class="undo-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" title="Undo last watering">⟲</button>
+                `;
+            }
 
             const itemHtml = `
                 <li class="list-group-item d-flex align-items-center">
@@ -139,24 +180,23 @@ function renderPlantList() {
                         <div class="plant-name-wrapper">
                             <strong class="fs-5 plant-name">${plant.name}</strong>
                         </div>
-                        ${dueDateHtml}
+                         ${roomHtml}
+                         ${dueDateHtml}
                     </div>
                     <div class="plant-actions d-flex align-items-center">
-                        ${feedbackButtons}
-                        <div class="btn-group ms-1" role="group">
-                            <button class="snooze-btn btn btn-sm btn-outline-dark" data-id="${plant.id}" title="Snooze by 1 day">😴</button>
-                        </div>
-                        <button class="edit-btn btn btn-sm btn-outline-secondary ms-1" data-id="${plant.id}" title="Edit">✏️</button>
+                        ${actionButtonsHtml}
+                        <button class="edit-btn btn btn-sm btn-outline-secondary ms-2" data-id="${plant.id}" title="Edit">✎</button>
                     </div>
                 </li>
             `;
-            plantListEl.insertAdjacentHTML('beforeend', itemHtml);
+            listContainer.insertAdjacentHTML('beforeend', itemHtml);
         });
+        plantListEl.appendChild(listContainer);
     };
 
     renderGroup('Today', groups.today);
     renderGroup('Tomorrow', groups.tomorrow);
-    renderGroup('Next 7 Days', groups.next7Days);
+    renderGroup('Next 3 Days', groups.next3Days);
     renderGroup('Future', groups.future);
 }
 
@@ -168,6 +208,7 @@ function savePlant(event) {
     const plantData = {
         name: formData.get('name'),
         plantType: formData.get('plantType'),
+        roomName: formData.get('roomName'),
         sunlight: formData.get('sunlight'),
         intervalDays: parseInt(formData.get('intervalDays'), 10),
     };
@@ -235,6 +276,27 @@ function snoozePlant(id) {
     }
 }
 
+function undoLastWatering(id) {
+    const plant = appState.items.find(p => p.id === id);
+    if (!plant || !plant.wateringHistory || plant.wateringHistory.length === 0) return;
+
+    plant.wateringHistory.pop(); // Remove the last watering entry
+
+    const lastWateredDate = getLastWatered(plant); // Get the new last watering date
+
+    if (lastWateredDate) {
+        // Reschedule based on the new last watering date
+        plant.nextDue = new Date(lastWateredDate.getTime() + plant.intervalDays * 24 * 60 * 60 * 1000).toISOString();
+    } else {
+        // If no history remains, make it due immediately so it reappears in 'Today'
+        plant.nextDue = new Date().toISOString();
+    }
+
+    renderPlantList();
+    saveFile();
+}
+
+
 function editPlant(id) {
     appState.editingPlantId = id;
     const plant = appState.items.find(p => p.id === id);
@@ -242,6 +304,7 @@ function editPlant(id) {
         plantForm.id.value = plant.id;
         plantForm.name.value = plant.name;
         plantForm.plantType.value = plant.plantType;
+        plantForm.roomName.value = plant.roomName || '';
         plantForm.sunlight.value = plant.sunlight;
         plantForm.intervalDays.value = plant.intervalDays;
         plantModalEl.querySelector('.modal-title').textContent = 'Edit Plant';
@@ -354,6 +417,11 @@ plantListEl.addEventListener('click', (e) => {
 
     if (button.classList.contains('edit-btn')) editPlant(id);
     if (button.classList.contains('snooze-btn')) snoozePlant(id);
+    if (button.classList.contains('undo-btn')) {
+        if (confirm("Are you sure you want to undo the last watering? This cannot be undone.")) {
+            undoLastWatering(id);
+        }
+    }
     if (button.classList.contains('feedback-btn')) {
         const feedback = button.dataset.feedback;
         if (feedback === 'dry' || feedback === 'ok') {
